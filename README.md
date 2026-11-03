@@ -1,17 +1,36 @@
-# english_words_app
+# English Words App
 
-A new Flutter project.
+A Flutter app that helps software developers learn English words.
+It loads words from a REST API and tests your knowledge with a quiz.
 
-## Getting Started
+## Features
+- Load words from a Spring Boot API
+- Filter words by category and level
+- Take a quiz and check your answers
+- Daily 5: a quiz with five new words every day
+- Save your best score on the phone
 
-This project is a starting point for a Flutter application.
+## Tech stack
+- Flutter and Dart
+- `http` package for API calls
+- `shared_preferences` for local storage
 
-A few resources to get you started if this is your first Flutter project:
+## Backend
+The app uses the [Words API](https://github.com/YOUR_NAME/words-api),
+a REST API built with Spring Boot and PostgreSQL.
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+## Run locally
+    flutter pub get
+    flutter run
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+To build an Android release file:
+
+    flutter build apk --release
+
+## Screenshots
+![Word list](screenshots/list.png)
+![Quiz](screenshots/quiz.png)
+
+## Note
+The API runs on a free hosting plan. The first request can be slow
+because the server may be asleep.
