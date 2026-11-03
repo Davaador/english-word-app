@@ -16,7 +16,7 @@ It loads words from a REST API and tests your knowledge with a quiz.
 - `shared_preferences` for local storage
 
 ## Backend
-The app uses the [Words API](https://github.com/YOUR_NAME/words-api),
+The app uses the [Words API](https://github.com/Davaador/words-api),
 a REST API built with Spring Boot and PostgreSQL.
 
 ## Run locally
@@ -28,8 +28,8 @@ To build an Android release file:
     flutter build apk --release
 
 ## Screenshots
-![Word list](screenshots/list.png)
-![Quiz](screenshots/quiz.png)
+![Word list](screenshots/list.jpeg)
+![Quiz](screenshots/quiz.jpeg)
 
 ## Note
 The API runs on a free hosting plan. The first request can be slow
