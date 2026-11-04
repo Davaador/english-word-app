@@ -9,17 +9,17 @@ It loads words from a REST API and tests your knowledge with a quiz.
 - Take a quiz and check your answers
 - Daily 5: a quiz with five new words every day
 - Save your best score on the phone
-- Check your sentences from a Spring Boot API
+- Check your English sentences with AI
 
 ## Tech stack
 - Flutter and Dart
-- `http` package for API GET and POST calls 
+- `http` package for GET and POST requests
 - `shared_preferences` for local storage
-
 
 ## Backend
 The app uses the [Words API](https://github.com/Davaador/words-api),
 a REST API built with Spring Boot and PostgreSQL.
+The backend also calls the Claude API to check sentences.
 
 ## Run locally
     flutter pub get
@@ -32,8 +32,10 @@ To build an Android release file:
 ## Screenshots
 ![Word list](screenshots/list.jpeg)
 ![Quiz](screenshots/quiz.jpeg)
-![Check AI](screenshots/sentences.jpeg)
+![Check sentence](screenshots/sentences.jpeg)
 
 ## Note
 The API runs on a free hosting plan. The first request can be slow
-because the server may be asleep. The AI check sentences error because the AI check error.
+because the server may be asleep.
+The AI can make mistakes. Please check its answers.
+The AI checker has a limit of five requests per minute.
