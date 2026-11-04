@@ -45,6 +45,31 @@ Future<List<Word>> fetchWords() async {
   return data.map((item) => Word.fromJson(item)).toList();
 }
 
+const checkUrl = 'https://words-api-1jvo.onrender.com/api/check';
+
+class ApiException implements Exception {
+  final String message;
+  ApiException(this.message);
+}
+
+Future<String> checkSentence(String sentence) async {
+  final response = await http
+      .post(
+        Uri.parse(checkUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'sentence': sentence}),
+      )
+      .timeout(const Duration(seconds: 90));
+  if (response.statusCode == 503) {
+    throw ApiException('Too many requests. Try again in a minute.');
+  }
+  if (response.statusCode != 200) {
+    throw ApiException('Server error: ${response.statusCode}');
+  }
+  final data = jsonDecode(utf8.decode(response.bodyBytes));
+  return data['feedback'] as String;
+}
+
 List<Word> dailyWords(List<Word> all) {
   if (all.isEmpty) return [];
   final now = DateTime.now();
@@ -130,6 +155,14 @@ class _WordListPageState extends State<WordListPage> {
                 MaterialPageRoute(builder: (_) => QuizPage(words: words)),
               );
             },
+          ),
+          IconButton(
+            icon: const Icon(Icons.spellcheck),
+            tooltip: 'Check sentence',
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const CheckPage()),
+            ),
           ),
         ],
       ),
@@ -330,9 +363,88 @@ class _QuizPageState extends State<QuizPage> {
             const SizedBox(height: 8),
             Text('Score: $_score', textAlign: TextAlign.center),
             const SizedBox(height: 8),
-            Text(
-              'Score: $_score   Best: $_best',
-              textAlign: TextAlign.center,
+            Text('Score: $_score   Best: $_best', textAlign: TextAlign.center),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class CheckPage extends StatefulWidget {
+  const CheckPage({super.key});
+  @override
+  State<CheckPage> createState() => _CheckPageState();
+}
+
+class _CheckPageState extends State<CheckPage> {
+  final _controller = TextEditingController();
+  String _feedback = '';
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _check() async {
+    final sentence = _controller.text.trim();
+    if (sentence.isEmpty) {
+      setState(() => _feedback = 'Write a sentence first.');
+      return;
+    }
+    setState(() {
+      _loading = true;
+      _feedback = '';
+    });
+    try {
+      final result = await checkSentence(sentence);
+      if (!mounted) return;
+      setState(() => _feedback = result);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _feedback = e is ApiException
+            ? e.message
+            : 'Something went wrong. Try again.';
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _loading = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Check sentence')),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _controller,
+              maxLines: 3,
+              maxLength: 300,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                hintText: 'Write an English sentence',
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: _loading ? null : _check,
+              child: Text(_loading ? 'Checking...' : 'Check sentence'),
+            ),
+            const SizedBox(height: 16),
+            SelectableText(_feedback, style: const TextStyle(fontSize: 16)),
+            const SizedBox(height: 8),
+            const Text(
+              'AI can make mistakes. The first check can take a minute.',
+              style: TextStyle(color: Colors.grey),
             ),
           ],
         ),
