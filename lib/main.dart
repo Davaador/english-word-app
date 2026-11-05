@@ -1,73 +1,28 @@
-import 'dart:convert';
-
-import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-
 import 'dart:math';
-
+import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
-const apiUrl = 'https://words-api-1jvo.onrender.com/api/words';
+import 'api.dart';
+import 'words_model.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(MyApp(model: WordsModel()..load()));
 }
 
-class Word {
-  final String en;
-  final String mn;
-  final String category;
-  final String level;
+class MyApp extends StatelessWidget {
+  final WordsModel model;
+  const MyApp({super.key, required this.model});
 
-  Word({
-    required this.en,
-    required this.mn,
-    required this.category,
-    required this.level,
-  });
-
-  factory Word.fromJson(Map<String, dynamic> json) {
-    return Word(
-      en: json['en'] ?? '',
-      mn: json['mn'] ?? '',
-      category: json['category'] ?? '',
-      level: json['level'] ?? '',
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'My English Words',
+      theme: ThemeData(
+        colorSchemeSeed: const Color(0xFF2A6DF4),
+        useMaterial3: true,
+      ),
+      home: WordListPage(model: model),
     );
   }
-}
-
-Future<List<Word>> fetchWords() async {
-  final response = await http.get(Uri.parse(apiUrl));
-  if (response.statusCode != 200) {
-    throw Exception('Server error: ${response.statusCode}');
-  }
-  final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
-  return data.map((item) => Word.fromJson(item)).toList();
-}
-
-const checkUrl = 'https://words-api-1jvo.onrender.com/api/check';
-
-class ApiException implements Exception {
-  final String message;
-  ApiException(this.message);
-}
-
-Future<String> checkSentence(String sentence) async {
-  final response = await http
-      .post(
-        Uri.parse(checkUrl),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({'sentence': sentence}),
-      )
-      .timeout(const Duration(seconds: 90));
-  if (response.statusCode == 503) {
-    throw ApiException('Too many requests. Try again in a minute.');
-  }
-  if (response.statusCode != 200) {
-    throw ApiException('Server error: ${response.statusCode}');
-  }
-  final data = jsonDecode(utf8.decode(response.bodyBytes));
-  return data['feedback'] as String;
 }
 
 List<Word> dailyWords(List<Word> all) {
@@ -81,159 +36,120 @@ List<Word> dailyWords(List<Word> all) {
   return [for (var i = 0; i < count; i++) all[(start + i) % all.length]];
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class WordListPage extends StatelessWidget {
+  final WordsModel model;
+  const WordListPage({super.key, required this.model});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'My English Words',
-      theme: ThemeData(
-        colorSchemeSeed: const Color(0xFF2A6DF4),
-        useMaterial3: true,
-      ),
-      home: const WordListPage(),
-    );
-  }
-}
-
-class WordListPage extends StatefulWidget {
-  const WordListPage({super.key});
-
-  @override
-  State<WordListPage> createState() => _WordListPageState();
-}
-
-class _WordListPageState extends State<WordListPage> {
-  late Future<List<Word>> futureWords;
-  List<Word> _allWords = [];
-  String _category = 'all';
-  String _level = 'all';
-
-  @override
-  void initState() {
-    super.initState();
-    futureWords = fetchWords().then((words) {
-      _allWords = words;
-      return words;
-    });
-  }
-
-  List<Word> get _filtered {
-    return _allWords.where((w) {
-      final categoryOk = _category == 'all' || w.category == _category;
-      final levelOk = _level == 'all' || w.level == _level;
-      return categoryOk && levelOk;
-    }).toList();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('My English Words'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.today),
-            tooltip: 'Daily 5',
-            onPressed: () {
-              final words = dailyWords(_allWords);
-              if (words.isEmpty) return;
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => QuizPage(words: words)),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.quiz),
-            onPressed: () {
-              final words = _filtered;
-              if (words.isEmpty) return;
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => QuizPage(words: words)),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.spellcheck),
-            tooltip: 'Check sentence',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CheckPage()),
-            ),
-          ),
-        ],
-      ),
-      body: FutureBuilder<List<Word>>(
-        future: futureWords,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState != ConnectionState.done) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-          final categories = <String>[
-            'all',
-            ...{..._allWords.map((w) => w.category).where((c) => c.isNotEmpty)},
-          ];
-          final words = _filtered;
-          return Column(
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: DropdownButton<String>(
-                        value: _category,
-                        isExpanded: true,
-                        items: categories
-                            .map(
-                              (c) => DropdownMenuItem(value: c, child: Text(c)),
-                            )
-                            .toList(),
-                        onChanged: (value) =>
-                            setState(() => _category = value!),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: DropdownButton<String>(
-                        value: _level,
-                        isExpanded: true,
-                        items: ['all', 'easy', 'medium', 'hard']
-                            .map(
-                              (l) => DropdownMenuItem(value: l, child: Text(l)),
-                            )
-                            .toList(),
-                        onChanged: (value) => setState(() => _level = value!),
-                      ),
-                    ),
-                  ],
+    return ListenableBuilder(
+      listenable: model,
+      builder: (context, _) {
+        final words = model.filtered;
+        return Scaffold(
+          appBar: AppBar(
+            title: const Text('My English Words'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.spellcheck),
+                tooltip: 'Check sentence',
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CheckPage()),
                 ),
               ),
-              Expanded(
-                child: words.isEmpty
-                    ? const Center(child: Text('No words here'))
-                    : ListView.builder(
-                        itemCount: words.length,
-                        itemBuilder: (context, index) {
-                          final word = words[index];
-                          return ListTile(
-                            title: Text(word.en),
-                            subtitle: Text(word.mn),
-                            trailing: Text(word.level),
-                          );
-                        },
-                      ),
+              IconButton(
+                icon: const Icon(Icons.today),
+                tooltip: 'Daily 5',
+                onPressed: () {
+                  final daily = dailyWords(model.allWords);
+                  if (daily.isEmpty) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => QuizPage(words: daily)),
+                  );
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.quiz),
+                tooltip: 'Quiz',
+                onPressed: () {
+                  if (words.isEmpty) return;
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => QuizPage(words: words)),
+                  );
+                },
               ),
             ],
-          );
-        },
-      ),
+          ),
+          body: model.loading
+              ? const Center(child: CircularProgressIndicator())
+              : model.error != null
+                  ? Center(child: Text('Error: ${model.error}'))
+                  : Column(
+                      children: [
+                        if (model.fromCache)
+                          Container(
+                            width: double.infinity,
+                            color: Colors.orange.shade100,
+                            padding: const EdgeInsets.all(8),
+                            child: const Text(
+                              'Offline: showing saved words',
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: DropdownButton<String>(
+                                  value: model.category,
+                                  isExpanded: true,
+                                  items: model.categories
+                                      .map((c) => DropdownMenuItem(
+                                          value: c, child: Text(c)))
+                                      .toList(),
+                                  onChanged: (value) =>
+                                      model.setCategory(value!),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: DropdownButton<String>(
+                                  value: model.level,
+                                  isExpanded: true,
+                                  items: ['all', 'easy', 'medium', 'hard']
+                                      .map((l) => DropdownMenuItem(
+                                          value: l, child: Text(l)))
+                                      .toList(),
+                                  onChanged: (value) =>
+                                      model.setLevel(value!),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          child: words.isEmpty
+                              ? const Center(child: Text('No words here'))
+                              : ListView.builder(
+                                  itemCount: words.length,
+                                  itemBuilder: (context, index) {
+                                    final word = words[index];
+                                    return ListTile(
+                                      title: Text(word.en),
+                                      subtitle: Text(word.mn),
+                                      trailing: Text(word.level),
+                                    );
+                                  },
+                                ),
+                        ),
+                      ],
+                    ),
+        );
+      },
     );
   }
 }
@@ -327,7 +243,7 @@ class _QuizPageState extends State<QuizPage> {
             const SizedBox(height: 16),
             TextField(
               controller: _controller,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 hintText: 'Enter English word',
               ),
@@ -339,7 +255,7 @@ class _QuizPageState extends State<QuizPage> {
                 Expanded(
                   child: ElevatedButton(
                     onPressed: _check,
-                    child: Text('Check'),
+                    child: const Text('Check'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -361,9 +277,10 @@ class _QuizPageState extends State<QuizPage> {
               ),
             ),
             const SizedBox(height: 8),
-            Text('Score: $_score', textAlign: TextAlign.center),
-            const SizedBox(height: 8),
-            Text('Score: $_score   Best: $_best', textAlign: TextAlign.center),
+            Text(
+              'Score: $_score   Best: $_best',
+              textAlign: TextAlign.center,
+            ),
           ],
         ),
       ),
@@ -373,6 +290,7 @@ class _QuizPageState extends State<QuizPage> {
 
 class CheckPage extends StatefulWidget {
   const CheckPage({super.key});
+
   @override
   State<CheckPage> createState() => _CheckPageState();
 }
