@@ -15,6 +15,9 @@ class WordsModel extends ChangeNotifier {
   bool get loading => _loading;
   bool get fromCache => _fromCache;
   String? get error => _error;
+  final Future<WordsResult> Function() _fetcher;
+  WordsModel({Future<WordsResult> Function()? fetcher})
+      : _fetcher = fetcher ?? fetchWords;
 
   List<String> get categories => [
         'all',
@@ -34,7 +37,7 @@ class WordsModel extends ChangeNotifier {
     _error = null;
     notifyListeners();
     try {
-      final result = await fetchWords();
+      final result = await _fetcher();
       _allWords = result.words;
       _fromCache = result.fromCache;
     } catch (e) {
